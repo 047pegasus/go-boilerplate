@@ -1,0 +1,56 @@
+version: '3'
+
+vars:
+  DB_DSN: '{{.DB_DSN | default ""}}'
+
+tasks:
+  help:
+    desc: This is a help message
+    cmds:
+      - task --list-all
+    silent: true
+
+  confirm:
+    desc: conformation prompt
+    cmds:
+      - |
+        echo -n 'Are you sure to proceed ? [y/N]' && read ans && [ ${ans:-N} =y ]
+    silent: true
+    internal: true
+
+  run:
+    desc: run the application
+    cmds:
+      - |
+        go run ./cmd/go-boilerplate
+
+  migrations:new:
+    desc: create a new DB migration
+    vars:
+      NAME: '{{.name | default ""}}'
+    cmds:
+      - |
+        if [-z "{{.NAME}}" ]; then
+          echo "Error: name parameter is required"
+          echo "Usage: task:migrations:new name=<migration_name>"
+          exit 1
+        fi
+      - echo "Creating new migration for {{.NAME}}!!"
+      - echo "Creating migration files for {{.NAME}}..."
+      - tern new -m ./internal/database/migrations {{.NAME}}
+
+  migrations:up:
+    desc: To apply the staged(created) DB migrations
+    cmds:
+      - echo "Applying DB up migrations now.."
+      - tern migrate -m ./internal/database/migrations --conn-string {{.DB_DSN}}
+
+  tidy:
+    desc: format all .go files & run mod tidy & verify vendor module dependencies
+    cmds:
+      - echo "Formatting .go files..."
+      - go fmt ./...
+      - echo "Running tidy..."
+      - go mod tidy
+      - echo "Verifying vendor dependencies..."
+      - go mod verify
