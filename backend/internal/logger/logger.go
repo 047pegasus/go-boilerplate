@@ -150,7 +150,7 @@ func NewLoggerWithService(cfg *config.ObservabilityConfig, ls *LoggerService) ze
 		Str("environment", cfg.Environment).
 		Logger()
 
-	// Include stack traces for errors in development
+	// Include stack traces for errs in development
 	if !cfg.IsProduction() {
 		logger = logger.With().Stack().Logger()
 	}

@@ -17,6 +17,7 @@ type Config struct {
 	Database      DatabaseConfig       `koanf:"database" validate:"required"`
 	Cache         CacheConfig          `koanf:"cache" validate:"required"`
 	Auth          AuthConfig           `koanf:"auth" validate:"required"`
+	Integrations  IntegrationConfig    `json:"integrations" validate:"required"`
 	Observability *ObservabilityConfig `koanf:"observability"`
 }
 
@@ -43,6 +44,10 @@ type DatabaseConfig struct {
 	MaxIdleConns    int    `koanf:"db_max_idle_conns" validate:"required"`
 	ConnMaxLifetime int    `koanf:"db_conn_max_lifetime" validate:"required"`
 	ConnMaxIdleTime int    `koanf:"db_conn_max_idle_time" validate:"required"`
+}
+
+type IntegrationConfig struct {
+	ResendAPIKey string `koanf:"resend_api_key" validate:"required"`
 }
 
 type CacheConfig struct {
