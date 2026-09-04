@@ -27,10 +27,11 @@ type LoggingConfig struct {
 
 // ------------------------SentryConfig----------------------------------------
 type SentryConfig struct {
-	Dsn                       string `koanf:"obs_sentry_dsn" validate:"required"`
-	AppLogForwardingEnabled   bool   `koanf:"obs_app_log_forwarding_enabled"`
-	DistributedTracingEnabled bool   `koanf:"obs_distributed_tracing_enabled"`
-	DebugLoggingEnabled       bool   `koanf:"obs_debug_logging_enabled"`
+	Dsn                 string  `koanf:"obs_sentry_dsn" validate:"required"`
+	SendDefaultPII      bool    `koanf:"obs_sentry_send_default_pii"`
+	EnableTracing       bool    `koanf:"obs_sentry_enable_tracing"`
+	TracesSampleRate    float64 `koanf:"obs_sentry_traces_sample_rate"` //by default capture 50% transactions for tracing
+	DebugLoggingEnabled bool    `koanf:"obs_snetry_debug_logging_enabled"`
 }
 
 /*
@@ -61,10 +62,11 @@ func DefaultObservabilityConfig() *ObservabilityConfig {
 			SlowQueryThresholdTime: 100 * time.Millisecond,
 		},
 		Sentry: SentryConfig{
-			Dsn:                       "",
-			AppLogForwardingEnabled:   true,
-			DistributedTracingEnabled: true,
-			DebugLoggingEnabled:       false,
+			Dsn:                 "",
+			SendDefaultPII:      true,
+			EnableTracing:       true,
+			TracesSampleRate:    0.5,
+			DebugLoggingEnabled: false,
 		},
 		HealthChecks: HealthChecksConfig{
 			Enabled:  true,
@@ -99,7 +101,7 @@ func (cfg *ObservabilityConfig) Validate() error {
 	}
 
 	//Check for preventing production from having debug logging enabled
-	if cfg.Logging.Level == "debug" && cfg.isProduction() {
+	if cfg.Logging.Level == "debug" && cfg.IsProduction() {
 		return fmt.Errorf("invalid log_level for environment: %s %s \n debug logs only allowed for development", cfg.Logging.Level, cfg.Environment)
 	}
 
@@ -124,6 +126,6 @@ func (cfg *ObservabilityConfig) GetLogLevel() string {
 	return cfg.Logging.Level
 }
 
-func (cfg *ObservabilityConfig) isProduction() bool {
+func (cfg *ObservabilityConfig) IsProduction() bool {
 	return cfg.Environment == "production"
 }
