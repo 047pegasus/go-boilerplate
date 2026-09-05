@@ -26,7 +26,7 @@ type Primary struct {
 }
 
 type ServerConfig struct {
-	Port               int      `koanf:"server_port" validate:"required"`
+	Port               string   `koanf:"server_port" validate:"required"`
 	ReadTimeout        int      `koanf:"read_timeout" validate:"required"`
 	WriteTimeout       int      `koanf:"write_timeout" validate:"required"`
 	IdleTimeout        int      `koanf:"idle_timeout" validate:"required"`
