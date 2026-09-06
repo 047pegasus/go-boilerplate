@@ -13,7 +13,6 @@ import (
 	loggerPkg "github.com/047pegasus/go-boilerplate/internal/logger"
 	"github.com/047pegasus/go-boilerplate/internal/server/custom"
 	customVkUtils "github.com/047pegasus/go-boilerplate/internal/server/custom/custom_utils"
-
 	"github.com/rs/zerolog"
 	"github.com/valkey-io/valkey-go"
 )
@@ -23,7 +22,7 @@ type Server struct {
 	Logger        *zerolog.Logger
 	LoggerService *loggerPkg.LoggerService
 	DB            *database.Database
-	Cache         *valkey.Client
+	Cache         valkey.Client
 	httpServer    *http.Server
 	Job           *job.JobService
 }
@@ -40,9 +39,8 @@ func New(cfg *config.Config, logger *zerolog.Logger, loggerService *loggerPkg.Lo
 		InitAddress: []string{cfg.Cache.Address},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize/connect to cahce(valkey): %w", err) //rename with appropriate cache client
+		return nil, fmt.Errorf("Failed to initialize/connect to cache(valkey): %w", err) //rename with appropriate cache client
 	}
-	defer valkeyClient.Close()
 
 	//Add Sentry Redis Hooks if available
 	if loggerService != nil && loggerService.GetApplication() != nil {
@@ -71,13 +69,13 @@ func New(cfg *config.Config, logger *zerolog.Logger, loggerService *loggerPkg.Lo
 		Logger:        logger,
 		LoggerService: loggerService,
 		DB:            db,
-		Cache:         &valkeyClient,
+		Cache:         valkeyClient,
 		Job:           jobSvc,
 	}
 	return server, nil
 }
 
-func (s *Server) setupHttpServer(handler http.Handler) {
+func (s *Server) SetupHttpServer(handler http.Handler) {
 	s.httpServer = &http.Server{
 		Addr:         ":" + s.Config.Server.Port,
 		Handler:      handler,
@@ -103,6 +101,10 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	//Shutdown DB connection and onoging transactions
 	if err := s.DB.Close(); err != nil {
 		return fmt.Errorf("Failed to close database connection: %w", err)
+	}
+	//Shutdown Cache connection
+	if s.Cache != nil {
+		s.Cache.Close()
 	}
 	//Stop job server gracefully by handling ongoing jobs
 	if s.Job != nil {

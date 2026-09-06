@@ -27,6 +27,13 @@ type LoggerService struct {
 // NewLoggerService creates a new logger service with Sentry/New Relic integration
 func NewLoggerService(cfg *config.ObservabilityConfig) *LoggerService {
 	service := &LoggerService{}
+
+	log.Info().Str("dsn_present", fmt.Sprintf("%t", cfg.Sentry.Dsn != "")).Msg("checking sentry config")
+	if cfg.Sentry.Dsn == "" {
+		log.Warn().Msg("sentry DSN is empty — Sentry will not be initialized")
+		return service
+	}
+
 	if cfg.Sentry.Dsn == "" {
 		return service // simply return service if we need not initialize logging, we know this by the fact that the sentry dsn is not provided
 	}
@@ -42,17 +49,25 @@ func NewLoggerService(cfg *config.ObservabilityConfig) *LoggerService {
 	ConfigOptions.EnableTracing = cfg.Sentry.EnableTracing
 	// Set TracesSampleRate to 1.0 to capture 100% of transactions for tracing.
 	ConfigOptions.TracesSampleRate = cfg.Sentry.TracesSampleRate
+	//ConfigOptions.EnableLogs = cfg.Sentry.EnableLogs
 
 	if cfg.Sentry.DebugLoggingEnabled {
 		ConfigOptions.Debug = true
 	}
-
+	log.Info().
+		Bool("enable_tracing", cfg.Sentry.EnableTracing).
+		Float64("traces_sample_rate", cfg.Sentry.TracesSampleRate).
+		Bool("send_default_pii", cfg.Sentry.SendDefaultPII).
+		Msg("sentry config values before client init")
 	app, err := sentry.NewClient(ConfigOptions)
 	defer sentry.Flush(2 * time.Second)
 	if err != nil {
 		log.Error().Err(err).Msg("sentry initialization failed")
 		return service
 	}
+	log.Info().Msg("sentry client initialized successfully")
+	//bind the app to the client for truly flushing the buffer to the sentry hub
+	sentry.CurrentHub().BindClient(app)
 	service.sentryApp = app
 
 	/* ------------------------ NEW RELIC Integration parts ---------------------------

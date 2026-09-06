@@ -54,7 +54,7 @@ func New(cfg *config.Config, logger *zerolog.Logger, ls *loggerConfig.LoggerServ
 	hostPort := net.JoinHostPort(cfg.Database.Host, strconv.Itoa(cfg.Database.Port))
 	//URL Encode the password:
 	encodedPassword := url.QueryEscape(cfg.Database.Password)
-	connstr := fmt.Sprintf("postgres://%s%s@%s%s?sslmode=%s",
+	connstr := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s",
 		cfg.Database.User,
 		encodedPassword,
 		hostPort,

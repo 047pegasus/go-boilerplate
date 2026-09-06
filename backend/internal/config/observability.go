@@ -8,7 +8,7 @@ import (
 
 /*
 Using Sentry by default in our project for Observability, Logging and Monitoring Purposes"
-NOTE: The Sentry provider can be exchanged &  used instead by NewRelic as observability provider by uncommenting the NewRelicConfig Struct implementations
+NOTE: The Sentry provider can be exchanged & used instead by NewRelic as observability provider by uncommenting the NewRelicConfig Struct implementations
 */
 type ObservabilityConfig struct {
 	ServiceName string        `koanf:"service_name" validate:"required"`
@@ -20,36 +20,40 @@ type ObservabilityConfig struct {
 }
 
 type LoggingConfig struct {
-	Level                  string        `koanf:"log_level" validate:"required"`
-	Format                 string        `koanf:"log_format" validate:"required"`
-	SlowQueryThresholdTime time.Duration `koanf:"log_slow_query_threshold_time"`
+	Level                  string        `koanf:"level" validate:"required"`
+	Format                 string        `koanf:"format" validate:"required"`
+	SlowQueryThresholdTime time.Duration `koanf:"slow_query_threshold"`
 }
 
 // ------------------------SentryConfig----------------------------------------
 type SentryConfig struct {
-	Dsn                 string  `koanf:"obs_sentry_dsn" validate:"required"`
-	SendDefaultPII      bool    `koanf:"obs_sentry_send_default_pii"`
-	EnableTracing       bool    `koanf:"obs_sentry_enable_tracing"`
-	TracesSampleRate    float64 `koanf:"obs_sentry_traces_sample_rate"` //by default capture 50% transactions for tracing
-	DebugLoggingEnabled bool    `koanf:"obs_snetry_debug_logging_enabled"`
+	// Dsn is intentionally NOT required: an empty DSN is how the app disables
+	// Sentry entirely (see LoggerService.NewLoggerService's `if cfg.Sentry.Dsn == ""` check).
+	Dsn                 string  `koanf:"dsn"`
+	SendDefaultPII      bool    `koanf:"send_default_pii"`
+	EnableTracing       bool    `koanf:"enable_tracing"`
+	TracesSampleRate    float64 `koanf:"trace_sample_rate"`
+	DebugLoggingEnabled bool    `koanf:"debug_logging_enabled"`
+	//EnableLogs          bool    `koanf:"enable_logs"`
+	//EnableMetrics       bool    `koanf:"enable_metrics"`
 }
 
 /*
 Note: Uncomment this to use NewRelic instead !!
 // ----------------NewRelicConfig---------------------------------------------
 type NewRelicConfig struct {
-	LicenseKey                string `koanf:"obs_license_key" validate:"required"`
-	AppLogForwardingEnabled   bool   `koanf:"obs_app_log_forwarding_enabled"`
-	DistributedTracingEnabled bool   `koanf:"obs_distributed_tracing_enabled"`
-	DebugLoggingEnabled       bool   `koanf:"obs_debug_logging_enabled"`
+	LicenseKey                string `koanf:"license_key" validate:"required"`
+	AppLogForwardingEnabled   bool   `koanf:"app_log_forwarding_enabled"`
+	DistributedTracingEnabled bool   `koanf:"distributed_tracing_enabled"`
+	DebugLoggingEnabled       bool   `koanf:"debug_logging_enabled"`
 }
 */
 
 type HealthChecksConfig struct {
-	Enabled  bool          `koanf:"healthcheck_enabled" validate:"required"`
-	Interval time.Duration `koanf:"healthcheck_interval" validate:"min=1s"`
-	Timeout  time.Duration `koanf:"healthcheck_timeout" validate:"min=1s"`
-	Checks   []string      `koanf:"healthcheck_checks"`
+	Enabled  bool          `koanf:"enabled" validate:"required"`
+	Interval time.Duration `koanf:"interval" validate:"min=1s"`
+	Timeout  time.Duration `koanf:"timeout" validate:"min=1s"`
+	Checks   []string      `koanf:"checks"`
 }
 
 func DefaultObservabilityConfig() *ObservabilityConfig {
@@ -65,14 +69,16 @@ func DefaultObservabilityConfig() *ObservabilityConfig {
 			Dsn:                 "",
 			SendDefaultPII:      true,
 			EnableTracing:       true,
-			TracesSampleRate:    0.5,
+			TracesSampleRate:    0.5, // by default capture 50% transactions for tracing
 			DebugLoggingEnabled: false,
+			//EnableLogs:          true,
+			//EnableMetrics:       true,
 		},
 		HealthChecks: HealthChecksConfig{
 			Enabled:  true,
 			Interval: 30 * time.Second,
 			Timeout:  5 * time.Second,
-			Checks:   []string{"database", "redis"}, //add more service checks like queues etc.. in this when introducing them in the application
+			Checks:   []string{"database", "cache"}, // add more service checks like queues etc.. in this when introducing them in the application
 		},
 	}
 }
@@ -85,7 +91,10 @@ func (cfg *ObservabilityConfig) Validate() error {
 		return fmt.Errorf("environment is required and cannot be empty !!")
 	}
 
-	validEnvs := []string{"production", "staging", "development"}
+	// "local" is included alongside the standard deploy environments since
+	// Primary.Env == "local" is used elsewhere (e.g. database.go) to gate
+	// local-only behavior like verbose pgx query logging.
+	validEnvs := []string{"production", "staging", "development", "local"}
 	if !slices.Contains(validEnvs, cfg.Environment) {
 		return fmt.Errorf("environment '%s' is not valid", cfg.Environment)
 	}
@@ -100,7 +109,7 @@ func (cfg *ObservabilityConfig) Validate() error {
 		return fmt.Errorf("invalid log_level: %s", cfg.Logging.Level)
 	}
 
-	//Check for preventing production from having debug logging enabled
+	// Check for preventing production from having debug logging enabled
 	if cfg.Logging.Level == "debug" && cfg.IsProduction() {
 		return fmt.Errorf("invalid log_level for environment: %s %s \n debug logs only allowed for development", cfg.Logging.Level, cfg.Environment)
 	}
@@ -118,7 +127,7 @@ func (cfg *ObservabilityConfig) GetLogLevel() string {
 		if cfg.Logging.Level == "" {
 			return "info"
 		}
-	case "development":
+	case "development", "local":
 		if cfg.Logging.Level == "" {
 			return "debug"
 		}

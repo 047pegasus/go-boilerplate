@@ -3,7 +3,7 @@ Hello this is my personal golang backend focused boilerplate. Heavily inspired f
 Steps to replicate before running the project:
 
 a.) Make sure Taskfile is installed from https://taskfile.dev/docs/installation.
-b.) We will be using the following 3rd party/vendor packages in our boierplate:
+b.) We will be using the following 3rd party/vendor packages & Tools in our boilerplate:
 
     1.) Koanf (for Config Management): https://github.com/knadh/koanf
     2.) Zerolog (for logging purposes): https://github.com/rs/zerolog
@@ -13,7 +13,10 @@ b.) We will be using the following 3rd party/vendor packages in our boierplate:
     6.) Tern (for managing DB migrations): https://github.com/jackc/tern
     7.) Turborepo (for managing entire monorepo setup): https://turborepo.dev/
     8.) Asynq (for managing async background jobs using Redis): https://github.com/hibiken/asynq
-    9.) Resend (for sending emails): https://resend.com/
+    9.) Resend (for sending emails): https://github.com/resend/resend-go
+    10.) Valkey (for caching purpose, drop in redis replacemnt): https://github.com/valkey-io/valkey-go
+    11.) Clerk (for auth management): https://github.com/clerk/clerk-sdk-go
+    12.) Echo (for routing and overall HTTP lifecycle management, primary framework, using v5 specifically): https://github.com/labstack/echo
 
 Instead of using NewRelic since we are using Sentry in my project we need to have something to make a drop in replacement for [github.com/newrelic/go-agent/v3/integrations/nrpgx5][nrpgx]
 So I made a drop in replacement implementation in a file called [sentry_tracer.go] in the database package.
