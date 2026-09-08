@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/047pegasus/go-boilerplate/internal/apm"
+	kafkalib "github.com/047pegasus/go-boilerplate/internal/lib/kafka"
 	"github.com/047pegasus/go-boilerplate/internal/middleware"
 	"github.com/047pegasus/go-boilerplate/internal/server"
 	"github.com/047pegasus/go-boilerplate/internal/server/custom/custom_utils"
@@ -125,6 +126,28 @@ func (h *HealthHandler) CheckHealth(c *echo.Context) error {
 				"response_time": time.Since(valkeyStart).String(),
 			}
 			logger.Info().Dur("response_time", time.Since(valkeyStart)).Msg("valkey health check passed")
+		}
+	}
+
+	//check if kafka healthy ?
+	if h.server.Kafka != nil && h.server.Config.Kafka != nil {
+		ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
+		defer cancel()
+		if err := kafkalib.Ping(ctx, h.server.Config.Kafka); err != nil {
+			checks["kafka"] = map[string]interface{}{"status": "unhealthy", "error": err.Error()}
+		} else {
+			checks["kafka"] = map[string]interface{}{"status": "healthy"}
+		}
+	}
+
+	//check if storage client is up
+	if h.server.Storage != nil {
+		ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
+		defer cancel()
+		if err := h.server.Storage.Ping(ctx); err != nil {
+			checks["object_storage"] = map[string]interface{}{"status": "unhealthy", "error": err.Error()}
+		} else {
+			checks["object_storage"] = map[string]interface{}{"status": "healthy"}
 		}
 	}
 

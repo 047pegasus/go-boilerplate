@@ -16,6 +16,8 @@ type Config struct {
 	Server        ServerConfig         `koanf:"server" validate:"required"`
 	Database      DatabaseConfig       `koanf:"database" validate:"required"`
 	Cache         CacheConfig          `koanf:"cache" validate:"required"`
+	Kafka         *KafkaConfig         `koanf:"kafka"`
+	ObjectStorage *ObjectStorageConfig `koanf:"object_storage"`
 	Auth          AuthConfig           `koanf:"auth" validate:"required"`
 	Integrations  IntegrationConfig    `koanf:"integrations" validate:"required"`
 	Observability *ObservabilityConfig `koanf:"observability"`
@@ -54,6 +56,25 @@ type IntegrationConfig struct {
 // "redis" since the client was migrated from go-redis to valkey-go.
 type CacheConfig struct {
 	Address string `koanf:"address" validate:"required"`
+}
+
+// KafkaConfig is optional — leave the whole "kafka" section out of your env
+// to run without Kafka. If present, brokers/consumer group are required.
+type KafkaConfig struct {
+	Brokers       []string `koanf:"brokers" validate:"required"`
+	ClientID      string   `koanf:"client_id"`
+	ConsumerGroup string   `koanf:"consumer_group" validate:"required"`
+}
+
+// ObjectStorageConfig targets any S3-compatible provider — MinIO, Cloudflare
+// R2, Backblaze B2, or AWS S3. Optional — omit the section to disable.
+type ObjectStorageConfig struct {
+	Endpoint  string `koanf:"endpoint" validate:"required"`
+	Region    string `koanf:"region"`
+	AccessKey string `koanf:"access_key" validate:"required"`
+	SecretKey string `koanf:"secret_key" validate:"required"`
+	Bucket    string `koanf:"bucket" validate:"required"`
+	UseSSL    bool   `koanf:"use_ssl"`
 }
 
 // Since we are going to use Clerk as our Authentication tool provider we are making our AuthConfig struct accordingly!!

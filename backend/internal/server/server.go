@@ -10,6 +10,8 @@ import (
 	"github.com/047pegasus/go-boilerplate/internal/config"
 	"github.com/047pegasus/go-boilerplate/internal/database"
 	"github.com/047pegasus/go-boilerplate/internal/lib/job"
+	kafkalib "github.com/047pegasus/go-boilerplate/internal/lib/kafka"
+	storagelib "github.com/047pegasus/go-boilerplate/internal/lib/storage"
 	loggerPkg "github.com/047pegasus/go-boilerplate/internal/logger"
 	"github.com/047pegasus/go-boilerplate/internal/server/custom"
 	customVkUtils "github.com/047pegasus/go-boilerplate/internal/server/custom/custom_utils"
@@ -23,6 +25,8 @@ type Server struct {
 	LoggerService *loggerPkg.LoggerService
 	DB            *database.Database
 	Cache         valkey.Client
+	Kafka         *kafkalib.Producer
+	Storage       *storagelib.Client
 	httpServer    *http.Server
 	Job           *job.JobService
 }
@@ -55,6 +59,33 @@ func New(cfg *config.Config, logger *zerolog.Logger, loggerService *loggerPkg.Lo
 		logger.Error().Err(err).Msg("Valkey Unavailable, continuing startup...")
 	}
 
+	// Kafka producer — optional, skipped entirely if not configured
+	var kafkaProducer *kafkalib.Producer
+	if cfg.Kafka != nil {
+		kafkaProducer = kafkalib.NewProducer(cfg.Kafka)
+
+		pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := kafkalib.Ping(pingCtx, cfg.Kafka); err != nil {
+			logger.Error().Err(err).Msg("Kafka unavailable, continuing startup...")
+		}
+		pingCancel()
+	}
+
+	// Object storage — optional, skipped entirely if not configured
+	var storageClient *storagelib.Client
+	if cfg.ObjectStorage != nil {
+		storageClient, err = storagelib.NewClient(cfg.ObjectStorage)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to initialize object storage client: %w", err)
+		}
+
+		ensureCtx, ensureCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := storageClient.EnsureBucket(ensureCtx); err != nil {
+			logger.Error().Err(err).Msg("Object storage unavailable or bucket check failed, continuing startup...")
+		}
+		ensureCancel()
+	}
+
 	//init Job Service
 	jobSvc := job.NewJobService(logger, cfg)
 	jobSvc.InitHandlers(cfg, logger)
@@ -70,6 +101,8 @@ func New(cfg *config.Config, logger *zerolog.Logger, loggerService *loggerPkg.Lo
 		LoggerService: loggerService,
 		DB:            db,
 		Cache:         valkeyClient,
+		Kafka:         kafkaProducer,
+		Storage:       storageClient,
 		Job:           jobSvc,
 	}
 	return server, nil
@@ -98,10 +131,17 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if err := s.httpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("Failed to shutdown http server: %w", err)
 	}
-	//Shutdown DB connection and onoging transactions
+	//Shutdown DB connection and ongoing transactions
 	if err := s.DB.Close(); err != nil {
 		return fmt.Errorf("Failed to close database connection: %w", err)
 	}
+	// Shutdown kafka instance
+	if s.Kafka != nil {
+		if err := s.Kafka.Close(); err != nil {
+			s.Logger.Error().Err(err).Msg("failed to close kafka producer")
+		}
+	}
+	//note: shutting down obj storage client which we initialized is not required as minio.CLient does not hold a persistent connection
 	//Shutdown Cache connection
 	if s.Cache != nil {
 		s.Cache.Close()
