@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/047pegasus/go-boilerplate/internal/apm"
 	"github.com/047pegasus/go-boilerplate/internal/config"
 	"github.com/getsentry/sentry-go"
 	"github.com/getsentry/sentry-go/zerolog"
@@ -49,7 +50,6 @@ func NewLoggerService(cfg *config.ObservabilityConfig) *LoggerService {
 	ConfigOptions.EnableTracing = cfg.Sentry.EnableTracing
 	// Set TracesSampleRate to 1.0 to capture 100% of transactions for tracing.
 	ConfigOptions.TracesSampleRate = cfg.Sentry.TracesSampleRate
-	//ConfigOptions.EnableLogs = cfg.Sentry.EnableLogs
 
 	if cfg.Sentry.DebugLoggingEnabled {
 		ConfigOptions.Debug = true
@@ -69,6 +69,9 @@ func NewLoggerService(cfg *config.ObservabilityConfig) *LoggerService {
 	//bind the app to the client for truly flushing the buffer to the sentry hub
 	sentry.CurrentHub().BindClient(app)
 	service.sentryApp = app
+
+	apm.InitLogging(cfg.Sentry.EnableLogs)
+	apm.InitMetrics(cfg.Sentry.EnableMetrics)
 
 	/* ------------------------ NEW RELIC Integration parts ---------------------------
 	var configOptions []newrelic.ConfigOption

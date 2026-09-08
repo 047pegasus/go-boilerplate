@@ -34,8 +34,8 @@ type SentryConfig struct {
 	EnableTracing       bool    `koanf:"enable_tracing"`
 	TracesSampleRate    float64 `koanf:"trace_sample_rate"`
 	DebugLoggingEnabled bool    `koanf:"debug_logging_enabled"`
-	//EnableLogs          bool    `koanf:"enable_logs"`
-	//EnableMetrics       bool    `koanf:"enable_metrics"`
+	EnableLogs          bool    `koanf:"enable_logs"`
+	EnableMetrics       bool    `koanf:"enable_metrics"`
 }
 
 /*
@@ -71,8 +71,8 @@ func DefaultObservabilityConfig() *ObservabilityConfig {
 			EnableTracing:       true,
 			TracesSampleRate:    0.5, // by default capture 50% transactions for tracing
 			DebugLoggingEnabled: false,
-			//EnableLogs:          true,
-			//EnableMetrics:       true,
+			EnableLogs:          true,
+			EnableMetrics:       true,
 		},
 		HealthChecks: HealthChecksConfig{
 			Enabled:  true,

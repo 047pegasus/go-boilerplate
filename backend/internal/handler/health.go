@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/047pegasus/go-boilerplate/internal/apm"
 	"github.com/047pegasus/go-boilerplate/internal/middleware"
 	"github.com/047pegasus/go-boilerplate/internal/server"
 	"github.com/047pegasus/go-boilerplate/internal/server/custom/custom_utils"
@@ -157,6 +158,15 @@ func (h *HealthHandler) CheckHealth(c *echo.Context) error {
 		})
 		return fmt.Errorf("failed to write JSON response: %w", err)
 	}
+
+	// explicit Sentry logging
+	apm.LogInfo(c.Request().Context(), "health check passed", map[string]interface{}{
+		"total_duration_ms": time.Since(start).Milliseconds(),
+	})
+	// set Sentry app metrics explicitly
+	apm.Distribution(c.Request().Context(), "health_check.duration", float64(time.Since(start).Milliseconds()), nil,
+		sentry.WithUnit(sentry.UnitMillisecond),
+	)
 
 	return nil
 }
